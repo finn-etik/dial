@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -57,13 +59,17 @@ fun FieldText(
         text = text,
         modifier = modifier,
         style = TextStyle(
-            fontFamily = FontFamily.Monospace,
-            fontSize = size,
-            fontWeight = weight,
-            letterSpacing = tracking,
-            color = color,
-            textAlign = align,
-            lineHeight = lineHeight ?: TextUnit.Unspecified,
+            spanStyle = SpanStyle(
+                fontFamily = FontFamily.Monospace,
+                fontSize = size,
+                fontWeight = weight,
+                letterSpacing = tracking,
+                color = color,
+            ),
+            paragraphStyle = ParagraphStyle(
+                textAlign = align ?: TextAlign.Unspecified,
+                lineHeight = lineHeight ?: TextUnit.Unspecified,
+            ),
         ),
         maxLines = maxLines,
         overflow = overflow,
@@ -186,11 +192,13 @@ fun FieldInput(
             value = value,
             onValueChange = onValueChange,
             textStyle = TextStyle(
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp,
-                color = FieldInk,
+                spanStyle = SpanStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = FieldInk,
+                ),
             ),
             singleLine = true,
         )
