@@ -28,8 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.ParagraphStyle
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -58,18 +56,14 @@ fun FieldText(
     BasicText(
         text = text,
         modifier = modifier,
-        style = TextStyle(
-            spanStyle = SpanStyle(
-                fontFamily = FontFamily.Monospace,
-                fontSize = size,
-                fontWeight = weight,
-                letterSpacing = tracking,
-                color = color,
-            ),
-            paragraphStyle = ParagraphStyle(
-                textAlign = align ?: TextAlign.Unspecified,
-                lineHeight = lineHeight ?: TextUnit.Unspecified,
-            ),
+        style = TextStyle.Default.merge(
+            color = color,
+            fontSize = size,
+            fontWeight = weight,
+            fontFamily = FontFamily.Monospace,
+            letterSpacing = tracking,
+            textAlign = align ?: TextAlign.Unspecified,
+            lineHeight = lineHeight ?: TextUnit.Unspecified,
         ),
         maxLines = maxLines,
         overflow = overflow,
@@ -191,14 +185,12 @@ fun FieldInput(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = TextStyle(
-                spanStyle = SpanStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = FieldInk,
-                ),
+            textStyle = TextStyle.Default.merge(
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp,
+                color = FieldInk,
             ),
             singleLine = true,
         )
