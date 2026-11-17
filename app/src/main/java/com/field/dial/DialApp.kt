@@ -54,17 +54,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -215,17 +214,10 @@ fun DialApp() {
     LaunchedEffect(Unit) {
         val token = SessionToken(ctx, Intent(ctx, PlaybackService::class.java))
         val future = MediaController.Builder(ctx, token).buildAsync()
-        val c = suspendCancellableCoroutine<MediaController?> { cont ->
-            future.addListener(
-                {
-                    try {
-                        cont.resume(if (future.isDone) future.get() else null)
-                    } catch (_: Exception) {
-                        cont.resume(null)
-                    }
-                },
-                ContextCompat.getMainExecutor(ctx),
-            )
+        val c = try {
+            withContext(Dispatchers.IO) { future.get() }
+        } catch (_: Exception) {
+            null
         }
         if (c != null) {
             controller = c
