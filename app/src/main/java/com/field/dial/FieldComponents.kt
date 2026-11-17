@@ -185,6 +185,9 @@ fun FieldInput(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            // single-line BasicTextField wraps to content width unless forced;
+            // fillMaxWidth keeps the whole row tappable (empty field included)
+            modifier = Modifier.fillMaxWidth(),
             textStyle = TextStyle.Default.merge(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 12.sp,
