@@ -14,7 +14,7 @@ so a single license text covers the whole dependency tree.
 | AndroidX Compose Foundation (`androidx.compose.foundation:foundation`) | 1.7.6 | Google LLC / Android Open Source Project | Apache-2.0 | <https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt> |
 | Kotlin standard library | 2.0.21 | JetBrains s.r.o. and Kotlin contributors | Apache-2.0 | <https://github.com/JetBrains/kotlin/blob/master/license.txt> |
 | kotlinx.coroutines (`kotlinx-coroutines-android`) | 1.9.0 | JetBrains s.r.o. and kotlinx.coroutines contributors | Apache-2.0 | <https://github.com/Kotlin/kotlinx.coroutines/blob/master/LICENSE> |
-| Media3 ExoPlayer (`androidx.media3:media3-exoplayer` + `media3-exoplayer-hls`) — MP3/AAC-ADTS/HLS/ICY playback | 1.5.1 | Google LLC / Android Open Source Project | Apache-2.0 | <https://github.com/androidx/media3/blob/main/LICENSE> |
+| Media3 (`androidx.media3:media3-exoplayer` + `media3-exoplayer-hls` + `media3-session`) — MP3/AAC-ADTS/HLS/ICY playback + foreground service session | 1.5.1 | Google LLC / Android Open Source Project | Apache-2.0 | <https://github.com/androidx/media3/blob/main/LICENSE> |
 
 The Android framework classes used at runtime (`MediaPlayer`, `org.json`,
 `SharedPreferences`, …) are part of the Android Open Source Project and are
