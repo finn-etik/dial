@@ -14,8 +14,8 @@
 
 package com.field.dial
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -212,7 +212,7 @@ fun DialApp() {
     /* connect to the playback service; it owns the ExoPlayer, so streams keep
        playing in background / with the screen off */
     LaunchedEffect(Unit) {
-        val token = SessionToken(ctx, Intent(ctx, PlaybackService::class.java))
+        val token = SessionToken(ctx, ComponentName(ctx, PlaybackService::class.java))
         val future = MediaController.Builder(ctx, token).buildAsync()
         val c = try {
             withContext(Dispatchers.IO) { future.get() }
