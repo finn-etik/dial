@@ -5,7 +5,7 @@
  * EXT: INPUT ROW — BasicTextField station name/url inputs (foundation
  * primitive, styled per tokens: paper card, ink border, monospace).
  *
- * Playback: framework MediaPlayer (HTTP/ICY streams, prepareAsync).
+ * Playback: Media3 ExoPlayer (MP3 / AAC-ADTS / HLS / ICY streams).
  * Stations persist as JSON in SharedPreferences (org.json, framework only).
  * Station search: Radio Browser catalog API (radio-browser.info, CC0 data).
  * Auto-retry re-tunes 3 s after a stream error when RETRY is on.
@@ -14,8 +14,6 @@
 package com.field.dial
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,12 +52,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
+@OptIn(UnstableApi::class)
 @Composable
 fun DialApp() {
     val ctx = LocalContext.current
@@ -110,7 +114,7 @@ fun DialApp() {
     val results = remember { mutableStateListOf<SearchHit>() }
     val scope = rememberCoroutineScope()
 
-    var mp by remember { mutableStateOf<MediaPlayer?>(null) }
+    var player by remember { mutableStateOf<ExoPlayer?>(null) }
 
     fun saveStations() {
         val arr = JSONArray()
@@ -121,11 +125,8 @@ fun DialApp() {
     fun volumeFraction(): Float = if (muted) 0f else vol / 10f
 
     fun releasePlayer() {
-        mp?.let {
-            try { it.stop() } catch (_: Exception) {}
-            try { it.release() } catch (_: Exception) {}
-        }
-        mp = null
+        player?.release()
+        player = null
     }
 
     fun tune(st: Station) {
@@ -138,28 +139,28 @@ fun DialApp() {
         airtime = 0
         attempts = 0
         msg = ""
-        val m = MediaPlayer()
+        val p = ExoPlayer.Builder(ctx).build()
         try {
-            m.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            m.setDataSource(st.url)
-            val v = volumeFraction()
-            m.setVolume(v, v)
-            m.setOnPreparedListener { mm -> mm.start(); phase = Phase.ON; attempts = 0 }
-            m.setOnErrorListener { mm, _, _ ->
-                phase = Phase.ERR
-                try { mm.release() } catch (_: Exception) {}
-                if (mp === mm) mp = null
-                true
-            }
-            m.prepareAsync()
-            mp = m
+            p.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (player !== p) return
+                    when (state) {
+                        Player.STATE_READY -> { phase = Phase.ON; attempts = 0 }
+                        Player.STATE_ENDED -> phase = Phase.ERR
+                    }
+                }
+                override fun onPlayerError(error: PlaybackException) {
+                    if (player !== p) return
+                    phase = Phase.ERR
+                }
+            })
+            p.setMediaItem(MediaItem.fromUri(st.url))
+            p.setVolume(volumeFraction())
+            p.playWhenReady = true
+            p.prepare()
+            player = p
         } catch (_: Exception) {
-            m.release()
+            p.release()
             phase = Phase.ERR
         }
     }
@@ -232,8 +233,7 @@ fun DialApp() {
 
     /* live volume changes */
     LaunchedEffect(vol, muted) {
-        val v = volumeFraction()
-        mp?.setVolume(v, v)
+        player?.setVolume(volumeFraction())
     }
 
     /* auto retry: re-tune 3 s after a stream error.

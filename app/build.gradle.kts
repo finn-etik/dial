@@ -41,4 +41,6 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.7.6")
     implementation("androidx.compose.foundation:foundation:1.7.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
 }
