@@ -2,7 +2,8 @@
 
 Web radio stream player in the Field Design Language. Signal accent: violet `#6200EA`.
 
-- Playback via framework `MediaPlayer` (HTTP/ICY streams, `prepareAsync`).
+- Playback via Media3 ExoPlayer (`media3-exoplayer` + `-hls`): MP3, AAC/ADTS, HLS and ICY streams
+  (framework `MediaPlayer` cannot decode raw AAC, e.g. Sveriges Radio P1 AAC).
 - Stations persist as JSON in `SharedPreferences` (`org.json`, framework only).
 - Station search via the [Radio Browser](https://www.radio-browser.info/) catalog API
   (`*.api.radio-browser.info`, public-domain data): type a term, press GO, tap a result to save it.

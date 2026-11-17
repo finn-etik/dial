@@ -5,7 +5,8 @@
  * EXT: INPUT ROW — BasicTextField station name/url inputs (foundation
  * primitive, styled per tokens: paper card, ink border, monospace).
  *
- * Playback: framework MediaPlayer (HTTP/ICY streams, prepareAsync).
+ * Playback: Media3 ExoPlayer (MP3 / AAC-ADTS / HLS / ICY streams), owned by a
+ * foreground MediaSessionService so streams keep playing with screen off.
  * Stations persist as JSON in SharedPreferences (org.json, framework only).
  * Station search: Radio Browser catalog API (radio-browser.info, CC0 data).
  * Auto-retry re-tunes 3 s after a stream error when RETRY is on.
@@ -13,9 +14,8 @@
 
 package com.field.dial
 
+import android.content.ComponentName
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,11 +24,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,12 +54,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 
+@OptIn(UnstableApi::class)
 @Composable
 fun DialApp() {
     val ctx = LocalContext.current
@@ -107,7 +119,7 @@ fun DialApp() {
     val results = remember { mutableStateListOf<SearchHit>() }
     val scope = rememberCoroutineScope()
 
-    var mp by remember { mutableStateOf<MediaPlayer?>(null) }
+    var controller by remember { mutableStateOf<MediaController?>(null) }
 
     fun saveStations() {
         val arr = JSONArray()
@@ -117,16 +129,7 @@ fun DialApp() {
     fun persistTotal() { prefs.edit().putInt(Prefs.TOTAL, total).apply() }
     fun volumeFraction(): Float = if (muted) 0f else vol / 10f
 
-    fun releasePlayer() {
-        mp?.let {
-            try { it.stop() } catch (_: Exception) {}
-            try { it.release() } catch (_: Exception) {}
-        }
-        mp = null
-    }
-
     fun tune(st: Station) {
-        releasePlayer()
         persistTotal()
         play = st
         selId = st.id
@@ -135,35 +138,18 @@ fun DialApp() {
         airtime = 0
         attempts = 0
         msg = ""
-        val m = MediaPlayer()
-        try {
-            m.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            m.setDataSource(st.url)
-            val v = volumeFraction()
-            m.setVolume(v, v)
-            m.setOnPreparedListener { mm -> mm.start(); phase = Phase.ON; attempts = 0 }
-            m.setOnErrorListener { mm, _, _ ->
-                phase = Phase.ERR
-                try { mm.release() } catch (_: Exception) {}
-                if (mp === mm) mp = null
-                true
-            }
-            m.prepareAsync()
-            mp = m
-        } catch (_: Exception) {
-            m.release()
-            phase = Phase.ERR
-        }
+        val c = controller
+        if (c == null) { phase = Phase.ERR; msg = "PLAYER NOT READY"; return }
+        c.clearMediaItems()
+        c.setMediaItem(MediaItem.fromUri(st.url))
+        c.setVolume(volumeFraction())
+        c.prepare()
+        c.play()
     }
 
     fun stop() {
-        releasePlayer()
         persistTotal()
+        controller?.stop()
         phase = Phase.OFF
         play = null
         airtime = 0
@@ -199,7 +185,13 @@ fun DialApp() {
         searching = true
         results.clear()
         scope.launch {
-            val hits = try { RadioSearch.search(q) } catch (_: Exception) { emptyList() }
+            val hits = try {
+                RadioSearch.search(q)
+            } catch (_: Exception) {
+                searching = false
+                msg = "SEARCH FAILED / CHECK NETWORK"
+                return@launch
+            }
             searching = false
             if (hits.isEmpty()) {
                 msg = "NO STREAMS FOUND"
@@ -217,14 +209,41 @@ fun DialApp() {
         msg = "STATION SAVED"
     }
 
+    /* connect to the playback service; it owns the ExoPlayer, so streams keep
+       playing in background / with the screen off */
+    LaunchedEffect(Unit) {
+        val token = SessionToken(ctx, ComponentName(ctx, PlaybackService::class.java))
+        val future = MediaController.Builder(ctx, token).buildAsync()
+        val c = try {
+            withContext(Dispatchers.IO) { future.get() }
+        } catch (_: Exception) {
+            null
+        }
+        if (c != null) {
+            controller = c
+            c.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (controller !== c) return
+                    when (state) {
+                        Player.STATE_READY -> { phase = Phase.ON; attempts = 0 }
+                        Player.STATE_ENDED -> phase = Phase.ERR
+                    }
+                }
+                override fun onPlayerError(error: PlaybackException) {
+                    if (controller !== c) return
+                    phase = Phase.ERR
+                }
+            })
+        }
+    }
+
     /* persist volume + retry setting */
     LaunchedEffect(vol) { prefs.edit().putInt(Prefs.VOL, vol).apply() }
     LaunchedEffect(retryOn) { prefs.edit().putBoolean(Prefs.RETRY, retryOn).apply() }
 
     /* live volume changes */
     LaunchedEffect(vol, muted) {
-        val v = volumeFraction()
-        mp?.setVolume(v, v)
+        controller?.setVolume(volumeFraction())
     }
 
     /* auto retry: re-tune 3 s after a stream error.
@@ -251,7 +270,7 @@ fun DialApp() {
     /* cleanup */
     DisposableEffect(Unit) {
         onDispose {
-            releasePlayer()
+            controller?.release()
             persistTotal()
         }
     }
@@ -285,6 +304,7 @@ fun DialApp() {
         Column(
             Modifier
                 .fillMaxSize()
+                .padding(WindowInsets.systemBars.asPaddingValues())
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
