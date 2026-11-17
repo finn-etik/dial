@@ -56,13 +56,13 @@ fun FieldText(
     BasicText(
         text = text,
         modifier = modifier,
-        style = TextStyle(
-            fontFamily = FontFamily.Monospace,
+        style = TextStyle.Default.merge(
+            color = color,
             fontSize = size,
             fontWeight = weight,
+            fontFamily = FontFamily.Monospace,
             letterSpacing = tracking,
-            color = color,
-            textAlign = align,
+            textAlign = align ?: TextAlign.Unspecified,
             lineHeight = lineHeight ?: TextUnit.Unspecified,
         ),
         maxLines = maxLines,
@@ -185,7 +185,7 @@ fun FieldInput(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            textStyle = TextStyle(
+            textStyle = TextStyle.Default.merge(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
